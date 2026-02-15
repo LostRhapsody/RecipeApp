@@ -65,7 +65,7 @@ Constraints:
         { role: "system", content: systemPrompt },
         { role: "user", content: recipeText },
       ],
-      max_tokens: 160,
+      max_tokens: 1024,
       temperature: 0.4,
       top_p: 0.9,
     },
