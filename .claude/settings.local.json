@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:ui.nuxt.com)",
+      "WebFetch(domain:nuxt.com)",
+      "Bash(git -C \"C:/Users/evanr/code/RecipeApp\" log --oneline --all)",
+      "WebFetch(domain:orm.drizzle.team)",
+      "WebFetch(domain:jsonld.com)",
+      "WebFetch(domain:developers.google.com)",
+      "Bash(bun run:*)",
+      "Bash(node --version:*)",
+      "Bash(bun --version:*)",
+      "Bash(npx nuxt build)",
+      "WebFetch(domain:nitro.build)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:content.nuxt.com)",
+      "WebFetch(domain:www.answeroverflow.com)",
+      "WebFetch(domain:v3.nitro.build)",
+      "Bash(npm ls:*)",
+      "WebFetch(domain:www.allrecipes.com)",
+      "Bash(python3:*)",
+      "Bash(node -e:*)",
+      "Bash(bun install:*)",
+      "WebFetch(domain:webcache.googleusercontent.com)",
+      "Bash(curl:*)",
+      "Bash(NODE_OPTIONS=\"--no-deprecation\" npx nuxt build:*)"
+    ]
+  }
+}
