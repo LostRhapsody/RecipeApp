@@ -25,7 +25,9 @@
       "WebFetch(domain:webcache.googleusercontent.com)",
       "Bash(curl:*)",
       "Bash(NODE_OPTIONS=\"--no-deprecation\" npx nuxt build:*)",
-      "Bash(npx nuxi typecheck:*)"
+      "Bash(npx nuxi typecheck:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(grep:*)"
     ]
   }
 }

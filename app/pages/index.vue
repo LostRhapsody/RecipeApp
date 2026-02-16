@@ -10,7 +10,7 @@ type Schema = z.output<typeof schema>
 
 const state = reactive({ url: "" })
 const loading = ref(false)
-const useAI = ref(true)
+const useAI = ref(false)
 const statusMessage = ref("")
 const toast = useToast()
 

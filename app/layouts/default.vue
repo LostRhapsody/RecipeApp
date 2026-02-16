@@ -5,6 +5,7 @@
         <NuxtLink to="/" class="text-lg font-bold">Just the Recipe</NuxtLink>
         <nav class="flex items-center gap-4">
           <UButton to="/" variant="ghost" label="Home" />
+          <UButton to="/cookbooks" variant="ghost" label="Cookbooks" />
           <UButton to="/recipes" variant="ghost" label="Recipes" />
         </nav>
       </div>

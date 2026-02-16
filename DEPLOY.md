@@ -172,11 +172,7 @@ Download a Qwen3-4B GGUF model and start llama.cpp:
 
 ```bash
 # Example with llama-server (adjust path to your model)
-llama-server \
-  -m models/qwen3-4b-instruct-q4_k_m.gguf \
-  --host 127.0.0.1 \
-  --port 8081 \
-  -ngl 99  # offload all layers to GPU
+llama-server --model "C:\Users\evanr\.ollama\models\blobs\sha256-3e4cb14174460404e7a233e531675303b2fbf7749c02f91864fe311ab6344e4f"  --host 127.0.0.1  --port 8081  -ngl 99 -fa -c 4096 -b 512
 ```
 
 The LLM only needs to be reachable from localhost since the Nuxt server calls it server-side.

@@ -8,6 +8,7 @@ export function useDB() {
   if (!_db) {
     const sqlite = new Database("sqlite.db")
     sqlite.pragma("journal_mode = WAL")
+    sqlite.pragma("foreign_keys = ON")
     sqlite.exec(`
       CREATE TABLE IF NOT EXISTS recipes (
         id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -30,6 +31,20 @@ export function useDB() {
         created_at integer NOT NULL
       );
       CREATE UNIQUE INDEX IF NOT EXISTS recipes_url_unique ON recipes (url);
+
+      CREATE TABLE IF NOT EXISTS cookbooks (
+        id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+        name text NOT NULL,
+        description text,
+        created_at integer NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS cookbook_recipes (
+        id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+        cookbook_id integer NOT NULL REFERENCES cookbooks(id) ON DELETE CASCADE,
+        recipe_id integer NOT NULL REFERENCES recipes(id) ON DELETE CASCADE
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS cookbook_recipes_unique ON cookbook_recipes (cookbook_id, recipe_id);
     `)
     // Add columns for existing databases
     const columns = sqlite

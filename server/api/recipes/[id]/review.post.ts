@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: "Invalid recipe ID" })
   }
 
-  const { mode } = await readValidatedBody(event, schema.parse)
+  const { mode } = await readValidatedBody(event, (b) => schema.parse(b))
 
   const db = useDB()
   const recipe = db.select().from(recipes).where(eq(recipes.id, id)).get()
@@ -55,13 +55,6 @@ Constraints:
 - No chit-chat or preamble.`
 
   const result = await callLLM(systemPrompt, recipeText)
-
-  if (!result) {
-    throw createError({
-      statusCode: 503,
-      statusMessage: "Local LLM server is not running. Start llama-server first.",
-    })
-  }
 
   return { result }
 })

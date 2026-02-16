@@ -9,7 +9,7 @@ const schema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
-  const { url } = await readValidatedBody(event, schema.parse)
+  const { url } = await readValidatedBody(event, (b) => schema.parse(b))
 
   const db = useDB()
 

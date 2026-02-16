@@ -25,3 +25,25 @@ export const recipes = sqliteTable("recipes", {
 
 export type Recipe = typeof recipes.$inferSelect
 export type NewRecipe = typeof recipes.$inferInsert
+
+export const cookbooks = sqliteTable("cookbooks", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  description: text("description"),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+})
+
+export type Cookbook = typeof cookbooks.$inferSelect
+export type NewCookbook = typeof cookbooks.$inferInsert
+
+export const cookbookRecipes = sqliteTable("cookbook_recipes", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  cookbookId: integer("cookbook_id")
+    .notNull()
+    .references(() => cookbooks.id, { onDelete: "cascade" }),
+  recipeId: integer("recipe_id")
+    .notNull()
+    .references(() => recipes.id, { onDelete: "cascade" }),
+})
