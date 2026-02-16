@@ -10,15 +10,24 @@ type Schema = z.output<typeof schema>
 
 const state = reactive({ url: "" })
 const loading = ref(false)
+const useAI = ref(true)
+const statusMessage = ref("")
 const toast = useToast()
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {
   loading.value = true
   try {
+    statusMessage.value = "Fetching recipe..."
     const recipe = await $fetch("/api/recipes/scrape", {
       method: "POST",
       body: { url: event.data.url },
     })
+
+    if (useAI.value && recipe.isNew) {
+      statusMessage.value = "Improving with AI..."
+      await $fetch(`/api/recipes/${recipe.id}/cleanup`, { method: "POST" })
+    }
+
     await navigateTo(`/recipes/${recipe.id}`)
   } catch (e: any) {
     toast.add({
@@ -28,6 +37,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     })
   } finally {
     loading.value = false
+    statusMessage.value = ""
   }
 }
 </script>
@@ -48,6 +58,10 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
             :disabled="loading"
           />
         </UFormField>
+        <div class="flex items-center justify-center gap-2">
+          <USwitch v-model="useAI" :disabled="loading" />
+          <span class="text-sm">Improve with AI</span>
+        </div>
         <UButton
           type="submit"
           label="Get Recipe"
@@ -55,6 +69,9 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
           :loading="loading"
           class="self-center"
         />
+        <p v-if="statusMessage" class="text-muted text-sm animate-pulse">
+          {{ statusMessage }}
+        </p>
       </UForm>
     </div>
   </div>

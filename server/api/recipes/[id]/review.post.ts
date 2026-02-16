@@ -2,6 +2,7 @@ import { z } from "zod"
 import { eq } from "drizzle-orm"
 import { useDB } from "../../../database"
 import { recipes } from "../../../database/schema"
+import { callLLM } from "../../../lib/llm"
 
 const schema = z.object({
   mode: z.enum(["review", "cleanup", "suggestions"]).default("review"),
@@ -53,33 +54,14 @@ Constraints:
 - Reply in under 120 words.
 - No chit-chat or preamble.`
 
-  const { llamaBaseUrl } = useRuntimeConfig()
+  const result = await callLLM(systemPrompt, recipeText)
 
-  const res = await $fetch<{
-    choices: { message: { content: string } }[]
-  }>(`${llamaBaseUrl}/v1/chat/completions`, {
-    method: "POST",
-    body: {
-      model: "qwen3-4b-instruct",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: recipeText },
-      ],
-      max_tokens: 1024,
-      temperature: 0.4,
-      top_p: 0.9,
-    },
-  }).catch(() => {
+  if (!result) {
     throw createError({
       statusCode: 503,
       statusMessage: "Local LLM server is not running. Start llama-server first.",
     })
-  })
-
-  const content = res.choices?.[0]?.message?.content ?? ""
-
-  // Strip <think>...</think> blocks from reasoning models
-  const result = content.replace(/<think>[\s\S]*?<\/think>/g, "").trim()
+  }
 
   return { result }
 })

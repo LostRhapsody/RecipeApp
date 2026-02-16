@@ -24,7 +24,8 @@
       "Bash(bun install:*)",
       "WebFetch(domain:webcache.googleusercontent.com)",
       "Bash(curl:*)",
-      "Bash(NODE_OPTIONS=\"--no-deprecation\" npx nuxt build:*)"
+      "Bash(NODE_OPTIONS=\"--no-deprecation\" npx nuxt build:*)",
+      "Bash(npx nuxi typecheck:*)"
     ]
   }
 }

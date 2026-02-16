@@ -16,11 +16,11 @@ export default defineEventHandler(async (event) => {
   // Check for existing recipe with this URL
   const existing = db.select().from(recipes).where(eq(recipes.url, url)).get()
   if (existing) {
-    return existing
+    return { ...existing, isNew: false }
   }
 
-  const data = await scrapeRecipe(url)
-  const inserted = db.insert(recipes).values(data).returning().get()
+  const raw = await scrapeRecipe(url)
+  const inserted = db.insert(recipes).values(raw).returning().get()
 
-  return inserted
+  return { ...inserted, isNew: true }
 })
