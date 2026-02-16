@@ -1,11 +1,7 @@
 # Recipe App To Do
 
-- Quick search
-  - A little button in the recipe, FAB probably, to search for a keyword inside of the recipe.
-  - Good for very large recipes.
-  - Ctrl-F basically.
+- Integrate Zero Cache so everything is instant
 - Split ingredients and instructions up into logical sections, i.e. "ingredients for sauce" "instructions for icing" "isntructions for cake" etc.
-- Edit the recipe data in the recipe view, right now it's entirely static.
 
 # Evan's Nuxt Quick Start Template
 
