@@ -446,15 +446,15 @@ async function deleteRecipe() {
 
           <template v-if="editing">
             <div class="space-y-4">
-              <div
-                v-for="(section, si) in editData.ingredients"
-                :key="si"
-                class="space-y-2"
-              >
+              <div v-for="(section, si) in editData.ingredients" :key="si" class="space-y-2">
                 <div class="flex items-center gap-2">
                   <UInput
                     v-model="editData.ingredients[si].name"
-                    :placeholder="editData.ingredients.length > 1 ? 'Section name (e.g. For the sauce)' : 'Section name (optional)'"
+                    :placeholder="
+                      editData.ingredients.length > 1
+                        ? 'Section name (e.g. For the sauce)'
+                        : 'Section name (optional)'
+                    "
                     size="sm"
                     class="flex-1"
                   />
@@ -467,7 +467,11 @@ async function deleteRecipe() {
                     @click="removeIngredientSection(si)"
                   />
                 </div>
-                <div v-for="(_, ii) in section.items" :key="ii" class="flex items-center gap-2 pl-4">
+                <div
+                  v-for="(_, ii) in section.items"
+                  :key="ii"
+                  class="flex items-center gap-2 pl-4"
+                >
                   <UInput v-model="editData.ingredients[si].items[ii]" class="flex-1" />
                   <UButton
                     icon="i-lucide-x"
@@ -498,13 +502,13 @@ async function deleteRecipe() {
 
           <template v-else>
             <div
-              v-for="(section, si) in (recipe.ingredients as RecipeSection[])"
+              v-for="(section, si) in recipe.ingredients as RecipeSection[]"
               :key="si"
               :class="{ 'mt-4': si > 0 }"
             >
               <h3
                 v-if="section.name"
-                class="text-muted mb-2 text-sm font-semibold uppercase tracking-wide"
+                class="text-muted mb-2 text-sm font-semibold tracking-wide uppercase"
               >
                 {{ section.name }}
               </h3>
@@ -528,15 +532,15 @@ async function deleteRecipe() {
 
           <template v-if="editing">
             <div class="space-y-4">
-              <div
-                v-for="(section, si) in editData.instructions"
-                :key="si"
-                class="space-y-3"
-              >
+              <div v-for="(section, si) in editData.instructions" :key="si" class="space-y-3">
                 <div class="flex items-center gap-2">
                   <UInput
                     v-model="editData.instructions[si].name"
-                    :placeholder="editData.instructions.length > 1 ? 'Section name (e.g. For the cake)' : 'Section name (optional)'"
+                    :placeholder="
+                      editData.instructions.length > 1
+                        ? 'Section name (e.g. For the cake)'
+                        : 'Section name (optional)'
+                    "
                     size="sm"
                     class="flex-1"
                   />
@@ -584,13 +588,13 @@ async function deleteRecipe() {
 
           <template v-else>
             <div
-              v-for="(section, si) in (recipe.instructions as RecipeSection[])"
+              v-for="(section, si) in recipe.instructions as RecipeSection[]"
               :key="si"
               :class="{ 'mt-6': si > 0 }"
             >
               <h3
                 v-if="section.name"
-                class="text-muted mb-3 text-sm font-semibold uppercase tracking-wide"
+                class="text-muted mb-3 text-sm font-semibold tracking-wide uppercase"
               >
                 {{ section.name }}
               </h3>
@@ -734,12 +738,10 @@ async function deleteRecipe() {
                   </h4>
 
                   <!-- Array fields: ingredients/instructions -->
-                  <template
-                    v-if="Array.isArray(change.old) && Array.isArray(change.new)"
-                  >
+                  <template v-if="Array.isArray(change.old) && Array.isArray(change.new)">
                     <div class="space-y-1.5 text-sm">
                       <div
-                        v-for="(item, i) in (change.new as string[])"
+                        v-for="(item, i) in change.new as string[]"
                         :key="i"
                         class="rounded px-2 py-1"
                         :class="
@@ -751,7 +753,7 @@ async function deleteRecipe() {
                               : ''
                         "
                       >
-                        <span>{{ field === 'instructions' ? `${i + 1}. ` : '- ' }}{{ item }}</span>
+                        <span>{{ field === "instructions" ? `${i + 1}. ` : "- " }}{{ item }}</span>
                         <div
                           v-if="
                             i < (change.old as string[]).length &&

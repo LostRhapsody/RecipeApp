@@ -63,24 +63,33 @@ export default defineEventHandler(async (event) => {
     if (Object.keys(confirmFiltered).length === 0) {
       throw createError({ statusCode: 400, statusMessage: "No changes to apply." })
     }
-    const updated = db.update(recipes).set(confirmFiltered).where(eq(recipes.id, id)).returning().get()
+    const updated = db
+      .update(recipes)
+      .set(confirmFiltered)
+      .where(eq(recipes.id, id))
+      .returning()
+      .get()
     return updated
   }
-  const recipeJson = JSON.stringify({
-    title: recipe.title,
-    description: recipe.description,
-    ingredients: normalizeSections(recipe.ingredients),
-    instructions: normalizeSections(recipe.instructions),
-    prepTime: recipe.prepTime,
-    cookTime: recipe.cookTime,
-    totalTime: recipe.totalTime,
-    freezeTime: recipe.freezeTime,
-    recipeYield: recipe.recipeYield,
-    recipeCategory: recipe.recipeCategory,
-    recipeCuisine: recipe.recipeCuisine,
-    nutrition: recipe.nutrition,
-    notes: recipe.notes,
-  }, null, 2)
+  const recipeJson = JSON.stringify(
+    {
+      title: recipe.title,
+      description: recipe.description,
+      ingredients: normalizeSections(recipe.ingredients),
+      instructions: normalizeSections(recipe.instructions),
+      prepTime: recipe.prepTime,
+      cookTime: recipe.cookTime,
+      totalTime: recipe.totalTime,
+      freezeTime: recipe.freezeTime,
+      recipeYield: recipe.recipeYield,
+      recipeCategory: recipe.recipeCategory,
+      recipeCuisine: recipe.recipeCuisine,
+      nutrition: recipe.nutrition,
+      notes: recipe.notes,
+    },
+    null,
+    2,
+  )
 
   // Preview path: run LLM, validate, return diff without writing
   const { aiResponse, mode, provider } = body as z.infer<typeof previewSchema>
@@ -191,9 +200,9 @@ Additional rules for suggestions mode:
         statusMessage: "Rejected: instructions must be an array.",
       })
     }
-    filtered.instructions = filtered.instructions.map((s: unknown) =>
-      typeof s === "string" ? s.trim() : String(s).trim(),
-    ).filter(Boolean)
+    filtered.instructions = filtered.instructions
+      .map((s: unknown) => (typeof s === "string" ? s.trim() : String(s).trim()))
+      .filter(Boolean)
     const originalCount = (recipe.instructions as string[]).length
     if (filtered.instructions.length < originalCount) {
       throw createError({
@@ -218,9 +227,9 @@ Additional rules for suggestions mode:
         statusMessage: "Rejected: ingredients must be an array.",
       })
     }
-    filtered.ingredients = filtered.ingredients.map((s: unknown) =>
-      typeof s === "string" ? s.trim() : String(s).trim(),
-    ).filter(Boolean)
+    filtered.ingredients = filtered.ingredients
+      .map((s: unknown) => (typeof s === "string" ? s.trim() : String(s).trim()))
+      .filter(Boolean)
     const originalCount = (recipe.ingredients as string[]).length
     if (filtered.ingredients.length < originalCount) {
       throw createError({

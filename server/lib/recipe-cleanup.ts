@@ -27,11 +27,7 @@ Return ONLY the JSON object. No markdown fences, no commentary.`
 function isValidSections(data: unknown): data is RecipeSection[] {
   if (!Array.isArray(data)) return false
   return data.every(
-    (s) =>
-      typeof s === "object" &&
-      s !== null &&
-      "items" in s &&
-      Array.isArray(s.items),
+    (s) => typeof s === "object" && s !== null && "items" in s && Array.isArray(s.items),
   )
 }
 
@@ -61,8 +57,12 @@ export async function cleanupRecipeData(data: ScrapedRecipe): Promise<ScrapedRec
       return data
     }
 
-    const cleanedIngredients = parsed.ingredients.filter((i: unknown) => typeof i === "string" && i.trim())
-    const cleanedInstructions = parsed.instructions.filter((s: unknown) => typeof s === "string" && s.trim())
+    const cleanedIngredients = parsed.ingredients.filter(
+      (i: unknown) => typeof i === "string" && i.trim(),
+    )
+    const cleanedInstructions = parsed.instructions.filter(
+      (s: unknown) => typeof s === "string" && s.trim(),
+    )
 
     // Reject if steps/ingredients were merged (fewer than original)
     if (cleanedInstructions.length < data.instructions.length) {
