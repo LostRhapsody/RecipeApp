@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import type { Recipe } from "~~/server/database/schema"
+
 const route = useRoute()
 const toast = useToast()
 
-const { data: recipe, status, refresh } = useFetch(`/api/recipes/${route.params.id}`)
+const { data: recipe, status, refresh } = useFetch<Recipe>(`/api/recipes/${route.params.id}`)
 
 // Cookbooks
 const { data: allCookbooks, refresh: refreshCookbooks } = useFetch("/api/cookbooks")
@@ -44,7 +46,22 @@ async function removeFromCookbook(cookbookId: number) {
 
 // Edit mode
 const editing = ref(false)
-const editData = ref<Record<string, any>>({})
+const editData = ref<{
+  title: string
+  description: string
+  author: string
+  prepTime: string
+  cookTime: string
+  totalTime: string
+  freezeTime: string
+  recipeYield: string
+  recipeCategory: string
+  recipeCuisine: string
+  ingredients: string[]
+  instructions: string[]
+  nutrition: Record<string, string>
+  notes: string
+}>({} as any)
 const saving = ref(false)
 
 function startEditing() {
@@ -70,7 +87,7 @@ function startEditing() {
 
 function cancelEditing() {
   editing.value = false
-  editData.value = {}
+  editData.value = {} as any
 }
 
 function addIngredient() {
@@ -121,9 +138,9 @@ async function saveEdit() {
     await $fetch(`/api/recipes/${route.params.id}`, { method: "PATCH", body })
     await refresh()
     editing.value = false
-    editData.value = {}
+    editData.value = {} as any
     toast.add({ title: "Recipe updated", color: "success" })
-  } catch(e) {
+  } catch (e) {
     toast.add({ title: "Failed to save changes", color: "error" })
   } finally {
     saving.value = false
@@ -172,28 +189,81 @@ async function runAiReview() {
   }
 }
 
-// AI Apply
+// AI Apply with preview
 const applyLoading = ref(false)
+const previewData = ref<{
+  changes: Record<string, { old: unknown; new: unknown }>
+  patch: Record<string, unknown>
+} | null>(null)
+const previewOpen = ref(false)
 
 async function applyAiResult() {
   applyLoading.value = true
   try {
-    await $fetch(`/api/recipes/${route.params.id}/apply`, {
+    const res = await $fetch<{
+      preview: boolean
+      changes: Record<string, { old: unknown; new: unknown }>
+      patch: Record<string, unknown>
+    }>(`/api/recipes/${route.params.id}/apply`, {
       method: "POST",
       body: { aiResponse: aiResult.value, mode: aiMode.value, provider: aiProvider.value },
     })
-    await refresh()
-    aiResult.value = ""
-    toast.add({ title: "AI suggestions applied", color: "success" })
+    previewData.value = { changes: res.changes, patch: res.patch }
+    previewOpen.value = true
   } catch (e: any) {
     toast.add({
-      title: "Failed to apply AI suggestions",
-      description: e.data?.message || "Could not apply changes.",
+      title: "Failed to generate preview",
+      description: e.data?.message || "Could not process changes.",
       color: "error",
     })
   } finally {
     applyLoading.value = false
   }
+}
+
+async function confirmApply() {
+  if (!previewData.value) return
+  applyLoading.value = true
+  try {
+    await $fetch(`/api/recipes/${route.params.id}/apply`, {
+      method: "POST",
+      body: { patch: previewData.value.patch, confirm: true },
+    })
+    await refresh()
+    previewData.value = null
+    previewOpen.value = false
+    aiResult.value = ""
+    toast.add({ title: "Changes applied", color: "success" })
+  } catch (e: any) {
+    toast.add({
+      title: "Failed to apply changes",
+      description: e.data?.message || "Could not apply.",
+      color: "error",
+    })
+  } finally {
+    applyLoading.value = false
+  }
+}
+
+function cancelPreview() {
+  previewData.value = null
+  previewOpen.value = false
+}
+
+const previewFieldLabels: Record<string, string> = {
+  title: "Title",
+  description: "Description",
+  ingredients: "Ingredients",
+  instructions: "Instructions",
+  prepTime: "Prep Time",
+  cookTime: "Cook Time",
+  totalTime: "Total Time",
+  freezeTime: "Additional Time",
+  recipeYield: "Yield",
+  recipeCategory: "Category",
+  recipeCuisine: "Cuisine",
+  nutrition: "Nutrition",
+  notes: "Notes",
 }
 
 // Nutrition labels
@@ -299,7 +369,12 @@ async function deleteRecipe() {
           <UBadge v-if="recipe.cookTime" variant="subtle" color="neutral" icon="i-lucide-flame">
             Cook: {{ recipe.cookTime }}
           </UBadge>
-          <UBadge v-if="recipe.freezeTime" variant="subtle" color="neutral" icon="i-lucide-snowflake">
+          <UBadge
+            v-if="recipe.freezeTime"
+            variant="subtle"
+            color="neutral"
+            icon="i-lucide-snowflake"
+          >
             Additional: {{ recipe.freezeTime }}
           </UBadge>
           <UBadge v-if="recipe.totalTime" variant="subtle" color="neutral" icon="i-lucide-clock">
@@ -490,8 +565,8 @@ async function deleteRecipe() {
               <div v-if="aiResult" class="bg-muted/50 rounded-md p-4">
                 <p class="text-sm whitespace-pre-wrap">{{ aiResult }}</p>
                 <UButton
-                  label="Apply to Recipe"
-                  icon="i-lucide-check"
+                  label="Preview Changes"
+                  icon="i-lucide-eye"
                   variant="soft"
                   size="sm"
                   class="mt-3"
@@ -502,6 +577,80 @@ async function deleteRecipe() {
             </div>
           </UCard>
         </div>
+
+        <!-- AI Preview Modal -->
+        <UModal v-model:open="previewOpen">
+          <template #content>
+            <div class="p-6">
+              <h3 class="mb-4 text-lg font-semibold">Preview Changes</h3>
+              <p class="text-muted mb-4 text-sm">
+                Review the proposed changes below before applying them to the recipe.
+              </p>
+
+              <div class="max-h-[60vh] space-y-5 overflow-y-auto">
+                <div
+                  v-for="(change, field) in previewData?.changes"
+                  :key="field"
+                  class="border-default rounded-md border p-3"
+                >
+                  <h4 class="mb-2 text-sm font-semibold">
+                    {{ previewFieldLabels[field as string] || field }}
+                  </h4>
+
+                  <!-- Array fields: ingredients/instructions -->
+                  <template
+                    v-if="Array.isArray(change.old) && Array.isArray(change.new)"
+                  >
+                    <div class="space-y-1.5 text-sm">
+                      <div
+                        v-for="(item, i) in (change.new as string[])"
+                        :key="i"
+                        class="rounded px-2 py-1"
+                        :class="
+                          i < (change.old as string[]).length &&
+                          (change.old as string[])[i] !== item
+                            ? 'bg-green-50 dark:bg-green-900/20'
+                            : i >= (change.old as string[]).length
+                              ? 'bg-blue-50 dark:bg-blue-900/20'
+                              : ''
+                        "
+                      >
+                        <span>{{ field === 'instructions' ? `${i + 1}. ` : '- ' }}{{ item }}</span>
+                        <div
+                          v-if="
+                            i < (change.old as string[]).length &&
+                            (change.old as string[])[i] !== item
+                          "
+                          class="text-muted mt-0.5 text-xs line-through"
+                        >
+                          was: {{ (change.old as string[])[i] }}
+                        </div>
+                      </div>
+                    </div>
+                  </template>
+
+                  <!-- String fields -->
+                  <template v-else>
+                    <p v-if="change.old" class="text-sm text-red-500 line-through">
+                      {{ change.old }}
+                    </p>
+                    <p class="text-sm text-green-600">{{ change.new }}</p>
+                  </template>
+                </div>
+              </div>
+
+              <div class="mt-5 flex justify-end gap-2">
+                <UButton label="Cancel" variant="outline" @click="cancelPreview" />
+                <UButton
+                  label="Confirm & Apply"
+                  icon="i-lucide-check"
+                  :loading="applyLoading"
+                  @click="confirmApply"
+                />
+              </div>
+            </div>
+          </template>
+        </UModal>
       </div>
 
       <!-- Add to Cookbook -->
@@ -540,17 +689,8 @@ async function deleteRecipe() {
             icon="i-lucide-external-link"
           />
           <template v-if="editing">
-            <UButton
-              label="Save"
-              icon="i-lucide-save"
-              :loading="saving"
-              @click="saveEdit"
-            />
-            <UButton
-              label="Cancel"
-              variant="outline"
-              @click="cancelEditing"
-            />
+            <UButton label="Save" icon="i-lucide-save" :loading="saving" @click="saveEdit" />
+            <UButton label="Cancel" variant="outline" @click="cancelEditing" />
           </template>
           <UButton
             v-else

@@ -69,7 +69,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
           :loading="loading"
           class="self-center"
         />
-        <p v-if="statusMessage" class="text-muted text-sm animate-pulse">
+        <p v-if="statusMessage" class="text-muted animate-pulse text-sm">
           {{ statusMessage }}
         </p>
       </UForm>

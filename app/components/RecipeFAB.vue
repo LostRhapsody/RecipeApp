@@ -25,7 +25,7 @@ watch(query, (val) => {
 </script>
 
 <template>
-  <div class="fixed bottom-6 right-6 z-50">
+  <div class="fixed right-6 bottom-6 z-50">
     <!-- Search panel -->
     <div
       v-if="searching"
@@ -39,21 +39,12 @@ watch(query, (val) => {
         class="bg-transparent text-sm outline-none"
         autofocus
       />
-      <UButton
-        icon="i-lucide-x"
-        size="xs"
-        variant="ghost"
-        @click="closeSearch"
-      />
+      <UButton icon="i-lucide-x" size="xs" variant="ghost" @click="closeSearch" />
     </div>
 
     <!-- FAB button -->
     <UPopover v-else v-model:open="open" :content="{ side: 'top', align: 'end' }">
-      <UButton
-        icon="i-lucide-ellipsis-vertical"
-        size="lg"
-        class="rounded-full shadow-lg"
-      />
+      <UButton icon="i-lucide-ellipsis-vertical" size="lg" class="rounded-full shadow-lg" />
 
       <template #content>
         <div class="p-1">

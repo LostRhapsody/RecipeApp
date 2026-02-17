@@ -1,3 +1,5 @@
+import { ofetch } from "ofetch"
+
 export type LLMProvider = "local" | "cloud"
 
 interface LLMOptions {
@@ -7,6 +9,8 @@ interface LLMOptions {
   maxTokens?: number
   /** Which provider to use (default: "local") */
   provider?: LLMProvider
+  /** Request JSON output format from the model (not all models support this) */
+  jsonMode?: boolean
 }
 
 const OPENROUTER_BASE = "https://openrouter.ai/api"
@@ -44,9 +48,10 @@ export async function callLLM(system: string, user: string, opts?: LLMOptions): 
     headers["X-Title"] = "Just the Recipe"
   }
 
+  const url: string = `${baseUrl}/v1/chat/completions`
   let res: { choices: { message: { content: string } }[] }
   try {
-    res = await $fetch(`${baseUrl}/v1/chat/completions`, {
+    res = await ofetch(url, {
       method: "POST",
       timeout: 120_000,
       headers,
@@ -57,8 +62,9 @@ export async function callLLM(system: string, user: string, opts?: LLMOptions): 
           { role: "user", content: userContent },
         ],
         max_tokens: opts?.maxTokens ?? 4096,
-        temperature: opts?.temperature ?? 0.4,
+        temperature: opts?.temperature ?? 0.2,
         top_p: 0.9,
+        ...(opts?.jsonMode ? { response_format: { type: "json_object" } } : {}),
       },
     })
   } catch (err: any) {

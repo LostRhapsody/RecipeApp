@@ -84,12 +84,7 @@ async function deleteCookbook() {
         <template v-else>
           <div class="flex items-center gap-3">
             <h1 class="text-2xl font-bold">{{ cookbook.name }}</h1>
-            <UButton
-              icon="i-lucide-pencil"
-              size="xs"
-              variant="ghost"
-              @click="startRename"
-            />
+            <UButton icon="i-lucide-pencil" size="xs" variant="ghost" @click="startRename" />
           </div>
           <p v-if="cookbook.description" class="text-muted mt-1">{{ cookbook.description }}</p>
         </template>
@@ -110,7 +105,7 @@ async function deleteCookbook() {
             size="xs"
             color="error"
             variant="soft"
-            class="absolute right-2 top-2 z-10"
+            class="absolute top-2 right-2 z-10"
             @click.prevent="removeRecipe(recipe.id)"
           />
         </div>
@@ -118,7 +113,12 @@ async function deleteCookbook() {
 
       <!-- Footer -->
       <div class="border-default mt-8 flex items-center justify-between border-t pt-6">
-        <UButton to="/cookbooks" label="All Cookbooks" variant="outline" icon="i-lucide-arrow-left" />
+        <UButton
+          to="/cookbooks"
+          label="All Cookbooks"
+          variant="outline"
+          icon="i-lucide-arrow-left"
+        />
         <UButton
           label="Delete Cookbook"
           color="error"

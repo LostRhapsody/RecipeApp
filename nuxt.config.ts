@@ -2,6 +2,8 @@
 export default defineNuxtConfig({
   compatibilityDate: "2025-07-15",
 
+  devServer: { port: 3214 },
+
   devtools: { enabled: true },
 
   modules: ["@nuxt/ui", "@nuxtjs/seo", "@vueuse/nuxt"],
@@ -15,12 +17,12 @@ export default defineNuxtConfig({
   css: ["~/assets/css/main.css"],
 
   site: {
-    url: process.env.NUXT_PUBLIC_SITE_URL || "http://localhost:3000",
+    url: process.env.NUXT_PUBLIC_SITE_URL || "http://localhost:3214",
     name: "Just the Recipe",
   },
 
   runtimeConfig: {
     llamaBaseUrl: "http://127.0.0.1:8081",
     openrouterApiKey: "",
-  }
+  },
 })

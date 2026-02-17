@@ -163,9 +163,7 @@ function normalizeInstructions(instructions: JsonLdRecipe["recipeInstructions"])
 
   const result: string[] = []
   for (const item of instructions) {
-    if (typeof item === "string") {
-      result.push(item.trim())
-    } else if (item["@type"] === "HowToStep" && item.text) {
+    if (item["@type"] === "HowToStep" && item.text) {
       result.push(item.text.trim())
     } else if (item["@type"] === "HowToSection" && item.itemListElement) {
       if (item.name) result.push(`**${item.name}**`)
@@ -177,9 +175,7 @@ function normalizeInstructions(instructions: JsonLdRecipe["recipeInstructions"])
   return result
 }
 
-function normalizeNutrition(
-  nutrition: JsonLdNutrition | undefined,
-): Record<string, string> | null {
+function normalizeNutrition(nutrition: JsonLdNutrition | undefined): Record<string, string> | null {
   if (!nutrition || typeof nutrition !== "object") return null
 
   const result: Record<string, string> = {}

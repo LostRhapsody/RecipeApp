@@ -42,7 +42,12 @@ async function createCookbook() {
     <div v-else-if="!cookbooks?.length" class="py-12 text-center">
       <UIcon name="i-lucide-library" class="text-muted mx-auto size-12" />
       <p class="text-muted mt-4">No cookbooks yet.</p>
-      <UButton label="Create your first cookbook" variant="soft" class="mt-4" @click="showCreate = true" />
+      <UButton
+        label="Create your first cookbook"
+        variant="soft"
+        class="mt-4"
+        @click="showCreate = true"
+      />
     </div>
 
     <div v-else class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
