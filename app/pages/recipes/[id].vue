@@ -330,6 +330,7 @@ function highlightText(text: string, query: string): string {
 }
 
 function escapeHtml(str: string): string {
+  if(typeof str !== "string") return "";
   return str
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -719,7 +720,7 @@ async function deleteRecipe() {
         </div>
 
         <!-- AI Preview Modal -->
-        <UModal v-model:open="previewOpen">
+        <UModal v-model:open="previewOpen" fullscreen>
           <template #content>
             <div class="p-6">
               <h3 class="mb-4 text-lg font-semibold">Preview Changes</h3>

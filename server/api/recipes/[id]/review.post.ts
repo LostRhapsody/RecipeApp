@@ -60,21 +60,28 @@ export default defineEventHandler(async (event) => {
     .join("\n")
 
   const systemPrompts: Record<string, string> = {
-    review: `You are a recipe reviewer. The user provides a recipe.
-Examine the recipe and identify ONLY problems you can confirm from the text provided.
+    review: `You are a recipe reviewer. The user provides a recipe with an ingredients list and numbered instructions.
+Your job: identify ONLY genuine problems you can prove exist by quoting the exact text.
+
+BEFORE flagging any issue, you MUST:
+1. Re-read the ENTIRE ingredients list (all sections) to check if the information is already there.
+2. Re-read the ENTIRE instructions list to check if the information is already there.
+3. Only flag the issue if you are 100% certain the information is missing or wrong.
+
+Valid issue types (ONLY these — nothing else):
+- A step says to set a temperature (e.g. "preheat the oven") but the specific temperature value is never stated anywhere in the recipe.
+- A step says to cook/bake for a duration but the specific time is never stated anywhere in the recipe.
+- An ingredient is listed with NO measurement at all — just a bare name like "salt" with no quantity. Note: "to taste", "pinch of", and "as needed" are acceptable and are NOT issues.
+- A step references an ingredient by name that does not appear anywhere in the ingredients list.
 
 Rules:
 - List each problem as a single bullet point starting with "- ".
-- Only flag issues that are clearly visible in the provided text. Do NOT guess, assume, or infer issues.
-- Valid issue types:
-  * A step mentions a temperature but does not specify the value.
-  * A step mentions a cook/bake time but does not specify the duration.
-  * An ingredient uses an ambiguous quantity like "some", "a bit", or no quantity at all.
-  * A step references an ingredient that is not in the ingredients list.
-  * A step has unclear doneness indicator (e.g. "cook until done" with no visual/tactile cue).
-- Do NOT flag steps that are already clear and complete.
+- For each issue, quote the exact problematic text in the bullet point so the user can verify.
+- If a quantity, time, or temperature IS specified anywhere in the recipe (in ANY section), it is NOT an issue. Do NOT flag it.
+- When in doubt, do NOT flag it. False positives are worse than missed issues.
 - Do NOT suggest flavor changes, technique alternatives, or personal preferences.
-- Do NOT invent issues. If the recipe is clear and complete, reply with exactly: "No issues found."
+- Do NOT comment on recipe quality, taste, or style.
+- If the recipe is clear and complete, reply with exactly: "No issues found."
 - Maximum 5 bullet points.
 - No preamble, no summary sentence, no closing remarks.`,
 

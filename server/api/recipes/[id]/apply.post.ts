@@ -1,8 +1,13 @@
 import { z } from "zod"
 import { eq } from "drizzle-orm"
 import { useDB } from "../../../database"
-import { recipes, normalizeSections } from "../../../database/schema"
+import { recipes, normalizeSections, type RecipeSection } from "../../../database/schema"
 import { callLLM } from "../../../lib/llm"
+
+/** Count total items across all sections */
+function countSectionItems(sections: RecipeSection[]): number {
+  return sections.reduce((sum, s) => sum + s.items.length, 0)
+}
 
 // Preview mode: run LLM and return diff without writing to DB
 const previewSchema = z.object({
@@ -95,17 +100,14 @@ export default defineEventHandler(async (event) => {
   const { aiResponse, mode, provider } = body as z.infer<typeof previewSchema>
 
   const sharedRules = `- Return ONLY a JSON object with the fields that should change.
-- "ingredients" must be an array of strings.
-- "instructions" must be an array of strings.
-Your job: Return ONLY a JSON object containing the fields that should be changed.
-- Only include fields that need updating based on the AI response.
 - "ingredients" must be an array of section objects: [{ "name": string|null, "items": string[] }].
 - "instructions" must be an array of section objects: [{ "name": string|null, "items": string[] }].
 - Use null for section name when there is no section grouping.
 - "nutrition" must be an object with string keys and string values.
 - All other fields are strings.
-- The "instructions" array MUST have >= the same number of items as the original. Do NOT merge or combine steps.
-- The "ingredients" array MUST have >= the same number of items as the original. Do NOT remove ingredients.
+- Preserve all section groupings. Do NOT merge or remove sections.
+- The total number of instruction items across all sections MUST be >= the original total. Do NOT merge or combine steps.
+- The total number of ingredient items across all sections MUST be >= the original total. Do NOT remove ingredients.
 - Each instruction step must describe ONE concise action. Do NOT combine multiple actions into one step.
 - Preserve all original information. Do NOT summarize, condense, or remove helpful details.
 - Do NOT include fields that are unchanged.
@@ -149,8 +151,10 @@ Additional rules for suggestions mode:
 
   const systemPrompt = applyPrompts[mode]
 
-  const ingredientCount = (recipe.ingredients as string[]).length
-  const instructionCount = (recipe.instructions as string[]).length
+  const ingredientSections = normalizeSections(recipe.ingredients)
+  const instructionSections = normalizeSections(recipe.instructions)
+  const ingredientCount = countSectionItems(ingredientSections)
+  const instructionCount = countSectionItems(instructionSections)
 
   const userPrompt = `Current recipe (${ingredientCount} ingredients, ${instructionCount} instruction steps):\n${recipeJson}\n\nAI ${mode} response:\n${aiResponse}\n\nIMPORTANT: Your output MUST have >= ${ingredientCount} ingredients and >= ${instructionCount} instruction steps. Each step must be a single concise action.`
 
@@ -200,24 +204,24 @@ Additional rules for suggestions mode:
         statusMessage: "Rejected: instructions must be an array.",
       })
     }
-    filtered.instructions = filtered.instructions
-      .map((s: unknown) => (typeof s === "string" ? s.trim() : String(s).trim()))
-      .filter(Boolean)
-    const originalCount = (recipe.instructions as string[]).length
-    if (filtered.instructions.length < originalCount) {
+    // Normalize to sections format and validate
+    const newSections = normalizeSections(filtered.instructions)
+    const newCount = countSectionItems(newSections)
+    if (newCount < instructionCount) {
       throw createError({
         statusCode: 422,
-        statusMessage: `Rejected: AI reduced instructions from ${originalCount} to ${filtered.instructions.length} steps (steps were likely merged or removed). Please try again.`,
+        statusMessage: `Rejected: AI reduced instructions from ${instructionCount} to ${newCount} steps (steps were likely merged or removed). Please try again.`,
       })
     }
     const maxStepLength = 500
-    const tooLong = filtered.instructions.find((s: string) => s.length > maxStepLength)
+    const tooLong = newSections.some((s) => s.items.some((item) => item.length > maxStepLength))
     if (tooLong) {
       throw createError({
         statusCode: 422,
         statusMessage: `Rejected: An instruction step exceeds ${maxStepLength} characters, which suggests multiple steps were merged into one. Please try again.`,
       })
     }
+    filtered.instructions = newSections
   }
 
   if (filtered.ingredients) {
@@ -227,16 +231,15 @@ Additional rules for suggestions mode:
         statusMessage: "Rejected: ingredients must be an array.",
       })
     }
-    filtered.ingredients = filtered.ingredients
-      .map((s: unknown) => (typeof s === "string" ? s.trim() : String(s).trim()))
-      .filter(Boolean)
-    const originalCount = (recipe.ingredients as string[]).length
-    if (filtered.ingredients.length < originalCount) {
+    const newSections = normalizeSections(filtered.ingredients)
+    const newCount = countSectionItems(newSections)
+    if (newCount < ingredientCount) {
       throw createError({
         statusCode: 422,
-        statusMessage: `Rejected: AI reduced ingredients from ${originalCount} to ${filtered.ingredients.length} items (ingredients were likely removed). Please try again.`,
+        statusMessage: `Rejected: AI reduced ingredients from ${ingredientCount} to ${newCount} items (ingredients were likely removed). Please try again.`,
       })
     }
+    filtered.ingredients = newSections
   }
 
   // Return preview diff (don't write to DB yet)

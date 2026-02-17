@@ -16,7 +16,7 @@ const emit = defineEmits<{
 
 <template>
   <component
-    :is="selectable ? 'div' : resolveComponent('NuxtLink')"
+    :is="selectable ? 'div' : NuxtLink"
     :to="selectable ? undefined : `/recipes/${recipe.id}`"
     class="group block"
     :class="selectable ? 'cursor-pointer' : ''"
