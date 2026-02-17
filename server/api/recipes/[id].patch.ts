@@ -3,6 +3,11 @@ import { eq } from "drizzle-orm"
 import { useDB } from "../../database"
 import { recipes } from "../../database/schema"
 
+const sectionSchema = z.object({
+  name: z.string().nullable(),
+  items: z.array(z.string()),
+})
+
 const schema = z.object({
   title: z.string().min(1).optional(),
   description: z.string().nullable().optional(),
@@ -15,8 +20,8 @@ const schema = z.object({
   recipeYield: z.string().nullable().optional(),
   recipeCategory: z.string().nullable().optional(),
   recipeCuisine: z.string().nullable().optional(),
-  ingredients: z.array(z.string()).optional(),
-  instructions: z.array(z.string()).optional(),
+  ingredients: z.array(sectionSchema).optional(),
+  instructions: z.array(sectionSchema).optional(),
   nutrition: z.record(z.string(), z.string()).nullable().optional(),
   notes: z.string().nullable().optional(),
 })
