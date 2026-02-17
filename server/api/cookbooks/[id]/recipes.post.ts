@@ -30,11 +30,7 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    return db
-      .insert(cookbookRecipes)
-      .values({ cookbookId: id, recipeId })
-      .returning()
-      .get()
+    return db.insert(cookbookRecipes).values({ cookbookId: id, recipeId }).returning().get()
   } catch {
     throw createError({ statusCode: 409, statusMessage: "Recipe already in cookbook" })
   }

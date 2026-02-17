@@ -47,9 +47,7 @@ export function useDB() {
       CREATE UNIQUE INDEX IF NOT EXISTS cookbook_recipes_unique ON cookbook_recipes (cookbook_id, recipe_id);
     `)
     // Add columns for existing databases
-    const columns = sqlite
-      .prepare("PRAGMA table_info(recipes)")
-      .all() as { name: string }[]
+    const columns = sqlite.prepare("PRAGMA table_info(recipes)").all() as { name: string }[]
     const columnNames = new Set(columns.map((c) => c.name))
     if (!columnNames.has("freeze_time")) {
       sqlite.exec("ALTER TABLE recipes ADD COLUMN freeze_time text")

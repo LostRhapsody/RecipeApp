@@ -9,7 +9,7 @@ Two options for running this app beyond `bun run dev`. **TL;DR: Option B (Local 
 Railway can host the Nuxt app, but there are trade-offs:
 
 - **SQLite** needs a persistent volume (Railway's filesystem is ephemeral).
-- **Qwen3-4B** needs \~4 GB RAM at minimum on CPU and will be *slow* without a GPU. Railway doesn't offer GPU instances, so the LLM review feature will either be unusable or you'd need to swap it for a cloud API (OpenRouter, Together, etc.).
+- **Qwen3-4B** needs \~4 GB RAM at minimum on CPU and will be _slow_ without a GPU. Railway doesn't offer GPU instances, so the LLM review feature will either be unusable or you'd need to swap it for a cloud API (OpenRouter, Together, etc.).
 - **Cost**: Hobby plan is $5/month + usage. A volume + enough RAM for the LLM gets expensive fast.
 
 If you only care about scraping/storage and are fine disabling or replacing the LLM, Railway works well.
@@ -262,17 +262,17 @@ Tailscale ACLs let you control which devices can reach which ports. In the Tails
 }
 ```
 
-This ensures only *your* authenticated devices can reach port 3000, even within your tailnet.
+This ensures only _your_ authenticated devices can reach port 3000, even within your tailnet.
 
 ---
 
 ## Quick comparison
 
-| | Railway | Local + Tailscale |
-|---|---|---|
-| LLM support | CPU only (slow) or swap to cloud API | Full GPU |
-| SQLite | Needs volume, ephemeral risk | Native filesystem |
-| Access control | Basic auth / Cloudflare Access | Tailscale ACLs (built-in) |
-| Monthly cost | ~$5-20+ | Free (Tailscale free tier) |
-| Accessible when PC is off | Yes | No (need a home server or always-on PC) |
-| Setup complexity | Medium | Low |
+|                           | Railway                              | Local + Tailscale                       |
+| ------------------------- | ------------------------------------ | --------------------------------------- |
+| LLM support               | CPU only (slow) or swap to cloud API | Full GPU                                |
+| SQLite                    | Needs volume, ephemeral risk         | Native filesystem                       |
+| Access control            | Basic auth / Cloudflare Access       | Tailscale ACLs (built-in)               |
+| Monthly cost              | ~$5-20+                              | Free (Tailscale free tier)              |
+| Accessible when PC is off | Yes                                  | No (need a home server or always-on PC) |
+| Setup complexity          | Medium                               | Low                                     |

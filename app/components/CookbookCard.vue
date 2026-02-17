@@ -19,7 +19,7 @@ defineProps<{
             {{ cookbook.recipeCount }} {{ cookbook.recipeCount === 1 ? "recipe" : "recipes" }}
           </UBadge>
         </div>
-        <p v-if="cookbook.description" class="text-muted text-sm line-clamp-2">
+        <p v-if="cookbook.description" class="text-muted line-clamp-2 text-sm">
           {{ cookbook.description }}
         </p>
       </div>

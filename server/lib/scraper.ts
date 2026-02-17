@@ -113,8 +113,7 @@ function normalizeJsonLd(
 ): Omit<NewRecipe, "id" | "createdAt"> {
   // Try JSON-LD flat list first, fall back to HTML ingredient groups
   let ingredients = normalizeIngredientSections(recipe.recipeIngredient)
-  const hasOnlyOneUnnamedSection =
-    ingredients.length === 1 && ingredients[0].name === null
+  const hasOnlyOneUnnamedSection = ingredients.length === 1 && ingredients[0].name === null
   if (hasOnlyOneUnnamedSection) {
     const htmlGroups = extractIngredientGroupsFromHtml($)
     if (htmlGroups.length > 0) {
@@ -179,8 +178,7 @@ function extractIngredientGroupsFromHtml($: cheerio.CheerioAPI): RecipeSection[]
   const wprmGroups = $(".wprm-recipe-ingredient-group")
   if (wprmGroups.length > 0) {
     wprmGroups.each((_, group) => {
-      const name =
-        $(group).find(".wprm-recipe-group-name").first().text().trim() || null
+      const name = $(group).find(".wprm-recipe-group-name").first().text().trim() || null
       const items: string[] = []
       $(group)
         .find(".wprm-recipe-ingredient")
@@ -218,9 +216,7 @@ function extractIngredientGroupsFromHtml($: cheerio.CheerioAPI): RecipeSection[]
   }
 
   // Generic: look for ingredient containers with internal headings
-  const containers = $(
-    ".recipe-ingredients, .ingredients-section, [class*='ingredient-group']",
-  )
+  const containers = $(".recipe-ingredients, .ingredients-section, [class*='ingredient-group']")
   if (containers.length > 0) {
     containers.each((_, container) => {
       $(container)
@@ -264,9 +260,7 @@ function isIngredientSectionHeader(text: string): boolean {
 /**
  * Splits a flat ingredient list into sections by detecting header items.
  */
-function normalizeIngredientSections(
-  ingredients: string[] | undefined,
-): RecipeSection[] {
+function normalizeIngredientSections(ingredients: string[] | undefined): RecipeSection[] {
   if (!ingredients || ingredients.length === 0) return [{ name: null, items: [] }]
 
   const sections: RecipeSection[] = []
@@ -293,9 +287,7 @@ function normalizeIngredientSections(
   return sections.length > 0 ? sections : [{ name: null, items: [] }]
 }
 
-function normalizeInstructions(
-  instructions: JsonLdRecipe["recipeInstructions"],
-): RecipeSection[] {
+function normalizeInstructions(instructions: JsonLdRecipe["recipeInstructions"]): RecipeSection[] {
   if (!instructions) return [{ name: null, items: [] }]
   if (typeof instructions === "string") {
     const items = instructions
@@ -357,9 +349,7 @@ function normalizeInstructions(
   return [{ name: null, items }]
 }
 
-function normalizeNutrition(
-  nutrition: JsonLdNutrition | undefined,
-): Record<string, string> | null {
+function normalizeNutrition(nutrition: JsonLdNutrition | undefined): Record<string, string> | null {
   if (!nutrition || typeof nutrition !== "object") return null
 
   const result: Record<string, string> = {}
