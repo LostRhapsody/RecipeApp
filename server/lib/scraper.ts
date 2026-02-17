@@ -1,5 +1,5 @@
 import * as cheerio from "cheerio"
-import type { NewRecipe } from "../database/schema"
+import type { NewRecipe, RecipeSection } from "../database/schema"
 
 interface JsonLdNutrition {
   "@type"?: string
@@ -52,7 +52,7 @@ export async function scrapeRecipe(url: string): Promise<Omit<NewRecipe, "id" | 
   // Strategy 1: JSON-LD
   const recipe = extractJsonLd($)
   if (recipe) {
-    return normalizeJsonLd(recipe, url)
+    return normalizeJsonLd(recipe, url, $)
   }
 
   // Strategy 2: HTML microdata/selectors fallback
@@ -106,7 +106,22 @@ function findRecipeInJsonLd(data: unknown): JsonLdRecipe | null {
   return null
 }
 
-function normalizeJsonLd(recipe: JsonLdRecipe, url: string): Omit<NewRecipe, "id" | "createdAt"> {
+function normalizeJsonLd(
+  recipe: JsonLdRecipe,
+  url: string,
+  $: cheerio.CheerioAPI,
+): Omit<NewRecipe, "id" | "createdAt"> {
+  // Try JSON-LD flat list first, fall back to HTML ingredient groups
+  let ingredients = normalizeIngredientSections(recipe.recipeIngredient)
+  const hasOnlyOneUnnamedSection =
+    ingredients.length === 1 && ingredients[0].name === null
+  if (hasOnlyOneUnnamedSection) {
+    const htmlGroups = extractIngredientGroupsFromHtml($)
+    if (htmlGroups.length > 0) {
+      ingredients = htmlGroups
+    }
+  }
+
   return {
     url,
     title: recipe.name || "Untitled Recipe",
@@ -120,7 +135,7 @@ function normalizeJsonLd(recipe: JsonLdRecipe, url: string): Omit<NewRecipe, "id
     recipeYield: normalizeStringOrArray(recipe.recipeYield),
     recipeCategory: normalizeStringOrArray(recipe.recipeCategory),
     recipeCuisine: normalizeStringOrArray(recipe.recipeCuisine),
-    ingredients: recipe.recipeIngredient || [],
+    ingredients,
     instructions: normalizeInstructions(recipe.recipeInstructions),
     nutrition: normalizeNutrition(recipe.nutrition),
     notes: null,
@@ -151,28 +166,195 @@ function normalizeStringOrArray(value: string | string[] | undefined): string | 
   return value
 }
 
-function normalizeInstructions(instructions: JsonLdRecipe["recipeInstructions"]): string[] {
-  if (!instructions) return []
+/**
+ * Extracts ingredient groups from HTML markup.
+ * Supports common recipe plugins: WPRM, Tasty Recipes, and generic
+ * patterns where ingredient items are grouped under headings.
+ * Returns an empty array if no grouped structure is found.
+ */
+function extractIngredientGroupsFromHtml($: cheerio.CheerioAPI): RecipeSection[] {
+  const sections: RecipeSection[] = []
+
+  // WPRM (WP Recipe Maker) — most common WordPress recipe plugin
+  const wprmGroups = $(".wprm-recipe-ingredient-group")
+  if (wprmGroups.length > 0) {
+    wprmGroups.each((_, group) => {
+      const name =
+        $(group).find(".wprm-recipe-group-name").first().text().trim() || null
+      const items: string[] = []
+      $(group)
+        .find(".wprm-recipe-ingredient")
+        .each((_, li) => {
+          const text = $(li).text().trim()
+          if (text) items.push(text)
+        })
+      if (items.length > 0) sections.push({ name, items })
+    })
+    if (sections.length > 1 || (sections.length === 1 && sections[0].name)) {
+      return sections
+    }
+    sections.length = 0
+  }
+
+  // Tasty Recipes plugin
+  const tastyBody = $(".tasty-recipes-ingredients-body")
+  if (tastyBody.length > 0) {
+    tastyBody.find("h4, h3, h2").each((_, heading) => {
+      const name = $(heading).text().trim() || null
+      const items: string[] = []
+      let next = $(heading).next()
+      while (next.length > 0 && !next.is("h4, h3, h2")) {
+        if (next.is("ul, ol")) {
+          next.find("li").each((_, li) => {
+            const text = $(li).text().trim()
+            if (text) items.push(text)
+          })
+        }
+        next = next.next()
+      }
+      if (items.length > 0) sections.push({ name, items })
+    })
+    if (sections.length > 0) return sections
+  }
+
+  // Generic: look for ingredient containers with internal headings
+  const containers = $(
+    ".recipe-ingredients, .ingredients-section, [class*='ingredient-group']",
+  )
+  if (containers.length > 0) {
+    containers.each((_, container) => {
+      $(container)
+        .find("h2, h3, h4, h5")
+        .each((_, heading) => {
+          const name = $(heading).text().trim() || null
+          const items: string[] = []
+          let next = $(heading).next()
+          while (next.length > 0 && !next.is("h2, h3, h4, h5")) {
+            if (next.is("ul, ol")) {
+              next.find("li").each((_, li) => {
+                const text = $(li).text().trim()
+                if (text) items.push(text)
+              })
+            }
+            next = next.next()
+          }
+          if (items.length > 0) sections.push({ name, items })
+        })
+    })
+    if (sections.length > 0) return sections
+  }
+
+  return []
+}
+
+/**
+ * Detects whether a flat ingredient string looks like a section header.
+ * Common patterns: "For the sauce:", "Cake:", "FROSTING", etc.
+ */
+function isIngredientSectionHeader(text: string): boolean {
+  const trimmed = text.trim()
+  // Ends with ":" and is short (no measurement-like content)
+  if (trimmed.endsWith(":") && trimmed.length < 60) {
+    // Shouldn't contain typical measurement patterns
+    if (!/\d/.test(trimmed)) return true
+  }
+  return false
+}
+
+/**
+ * Splits a flat ingredient list into sections by detecting header items.
+ */
+function normalizeIngredientSections(
+  ingredients: string[] | undefined,
+): RecipeSection[] {
+  if (!ingredients || ingredients.length === 0) return [{ name: null, items: [] }]
+
+  const sections: RecipeSection[] = []
+  let current: RecipeSection = { name: null, items: [] }
+
+  for (const item of ingredients) {
+    if (isIngredientSectionHeader(item)) {
+      // Push the current section if it has items
+      if (current.items.length > 0) {
+        sections.push(current)
+      }
+      // Start a new section with the header (strip trailing colon)
+      current = { name: item.trim().replace(/:$/, "").trim(), items: [] }
+    } else {
+      current.items.push(item)
+    }
+  }
+
+  // Push the last section
+  if (current.items.length > 0 || sections.length > 0) {
+    sections.push(current)
+  }
+
+  return sections.length > 0 ? sections : [{ name: null, items: [] }]
+}
+
+function normalizeInstructions(
+  instructions: JsonLdRecipe["recipeInstructions"],
+): RecipeSection[] {
+  if (!instructions) return [{ name: null, items: [] }]
   if (typeof instructions === "string") {
-    return instructions
+    const items = instructions
       .split(/\n+/)
       .map((s) => s.trim())
       .filter(Boolean)
+    return [{ name: null, items }]
   }
-  if (!Array.isArray(instructions)) return []
+  if (!Array.isArray(instructions)) return [{ name: null, items: [] }]
 
-  const result: string[] = []
-  for (const item of instructions) {
-    if (item["@type"] === "HowToStep" && item.text) {
-      result.push(item.text.trim())
-    } else if (item["@type"] === "HowToSection" && item.itemListElement) {
-      if (item.name) result.push(`**${item.name}**`)
-      for (const step of item.itemListElement) {
-        if (step.text) result.push(step.text.trim())
+  // Check if there are any HowToSection entries
+  const hasSections = instructions.some(
+    (item) => typeof item !== "string" && item["@type"] === "HowToSection",
+  )
+
+  if (hasSections) {
+    const sections: RecipeSection[] = []
+    let current: RecipeSection = { name: null, items: [] }
+
+    for (const item of instructions) {
+      if (typeof item === "string") {
+        current.items.push(item.trim())
+      } else if (item["@type"] === "HowToStep" && item.text) {
+        current.items.push(item.text.trim())
+      } else if (item["@type"] === "HowToSection") {
+        // Push previous section if it has items
+        if (current.items.length > 0) {
+          sections.push(current)
+        }
+        // Start new section
+        const sectionItems: string[] = []
+        if (item.itemListElement) {
+          for (const step of item.itemListElement) {
+            if (step.text) sectionItems.push(step.text.trim())
+          }
+        }
+        sections.push({ name: item.name || null, items: sectionItems })
+        current = { name: null, items: [] }
       }
     }
+
+    // Push any trailing steps
+    if (current.items.length > 0) {
+      sections.push(current)
+    }
+
+    return sections.length > 0 ? sections : [{ name: null, items: [] }]
   }
-  return result
+
+  // No sections — flat list of steps
+  const items: string[] = []
+  for (const item of instructions) {
+    if (typeof item === "string") {
+      items.push(item.trim())
+    } else if (item["@type"] === "HowToStep" && item.text) {
+      items.push(item.text.trim())
+    }
+  }
+  return [{ name: null, items }]
 }
 
 function normalizeNutrition(nutrition: JsonLdNutrition | undefined): Record<string, string> | null {
@@ -260,13 +442,13 @@ function extractFromHtml($: cheerio.CheerioAPI, url: string): Omit<NewRecipe, "i
 
   const author = $('[itemprop="author"]').first().text().trim() || null
 
-  const ingredients: string[] = []
+  const rawIngredients: string[] = []
   $('[itemprop="recipeIngredient"], [itemprop="ingredients"]').each((_, el) => {
     const text = $(el).text().trim()
-    if (text) ingredients.push(text)
+    if (text) rawIngredients.push(text)
   })
 
-  const instructions: string[] = []
+  const rawInstructions: string[] = []
   $('[itemprop="recipeInstructions"]').each((_, el) => {
     const tag = el.tagName?.toLowerCase()
     if (tag === "ol" || tag === "ul") {
@@ -274,7 +456,7 @@ function extractFromHtml($: cheerio.CheerioAPI, url: string): Omit<NewRecipe, "i
         .find("li")
         .each((_, li) => {
           const text = $(li).text().trim()
-          if (text) instructions.push(text)
+          if (text) rawInstructions.push(text)
         })
     } else {
       const text = $(el).text().trim()
@@ -283,7 +465,7 @@ function extractFromHtml($: cheerio.CheerioAPI, url: string): Omit<NewRecipe, "i
           .split(/\n+/)
           .map((s) => s.trim())
           .filter(Boolean)
-          .forEach((s) => instructions.push(s))
+          .forEach((s) => rawInstructions.push(s))
       }
     }
   })
@@ -306,8 +488,8 @@ function extractFromHtml($: cheerio.CheerioAPI, url: string): Omit<NewRecipe, "i
     recipeYield: $('[itemprop="recipeYield"]').first().text().trim() || null,
     recipeCategory: $('[itemprop="recipeCategory"]').first().text().trim() || null,
     recipeCuisine: $('[itemprop="recipeCuisine"]').first().text().trim() || null,
-    ingredients,
-    instructions,
+    ingredients: normalizeIngredientSections(rawIngredients),
+    instructions: [{ name: null, items: rawInstructions }],
     nutrition: null,
     notes: null,
   }

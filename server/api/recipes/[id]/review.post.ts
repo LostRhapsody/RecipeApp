@@ -1,13 +1,26 @@
 import { z } from "zod"
 import { eq } from "drizzle-orm"
 import { useDB } from "../../../database"
-import { recipes } from "../../../database/schema"
+import { recipes, normalizeSections } from "../../../database/schema"
+import type { RecipeSection } from "../../../database/schema"
 import { callLLM } from "../../../lib/llm"
 
 const schema = z.object({
   mode: z.enum(["review", "cleanup", "suggestions"]).default("review"),
   provider: z.enum(["local", "cloud"]).default("local"),
 })
+
+function formatSectionsAsText(sections: RecipeSection[], numbered: boolean): string {
+  return sections
+    .map((section) => {
+      const header = section.name ? `\n${section.name}:\n` : ""
+      const items = numbered
+        ? section.items.map((s, i) => `${i + 1}. ${s}`).join("\n")
+        : section.items.map((s) => `- ${s}`).join("\n")
+      return header + items
+    })
+    .join("\n")
+}
 
 export default defineEventHandler(async (event) => {
   const id = Number(getRouterParam(event, "id"))
@@ -25,8 +38,8 @@ export default defineEventHandler(async (event) => {
   }
 
   // Format recipe as plain text for the LLM
-  const ingredients = (recipe.ingredients as string[]).map((i) => `- ${i}`).join("\n")
-  const instructions = (recipe.instructions as string[]).map((s, i) => `${i + 1}. ${s}`).join("\n")
+  const ingredientSections = normalizeSections(recipe.ingredients)
+  const instructionSections = normalizeSections(recipe.instructions)
 
   const recipeText = [
     `Title: ${recipe.title}`,
@@ -38,10 +51,10 @@ export default defineEventHandler(async (event) => {
     recipe.recipeYield && `Yield: ${recipe.recipeYield}`,
     "",
     "Ingredients:",
-    ingredients,
+    formatSectionsAsText(ingredientSections, false),
     "",
     "Instructions:",
-    instructions,
+    formatSectionsAsText(instructionSections, true),
   ]
     .filter(Boolean)
     .join("\n")

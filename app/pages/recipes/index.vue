@@ -167,12 +167,13 @@ const filteredRecipes = computed(() => {
     result = result.filter((r) => r.recipeCuisine === selectedCuisine.value)
   }
 
-  // Ingredient search
+  // Ingredient search (works with sectioned data)
   if (ingredientSearch.value) {
     const q = ingredientSearch.value.toLowerCase()
-    result = result.filter((r) =>
-      (r.ingredients as string[]).some((ing) => ing.toLowerCase().includes(q)),
-    )
+    result = result.filter((r) => {
+      const sections = r.ingredients as { name: string | null; items: string[] }[]
+      return sections.some((s) => s.items.some((ing) => ing.toLowerCase().includes(q)))
+    })
   }
 
   // Sort

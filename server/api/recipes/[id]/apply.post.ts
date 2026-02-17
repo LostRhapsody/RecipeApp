@@ -1,7 +1,7 @@
 import { z } from "zod"
 import { eq } from "drizzle-orm"
 import { useDB } from "../../../database"
-import { recipes } from "../../../database/schema"
+import { recipes, normalizeSections } from "../../../database/schema"
 import { callLLM } from "../../../lib/llm"
 
 // Preview mode: run LLM and return diff without writing to DB
@@ -66,33 +66,33 @@ export default defineEventHandler(async (event) => {
     const updated = db.update(recipes).set(confirmFiltered).where(eq(recipes.id, id)).returning().get()
     return updated
   }
+  const recipeJson = JSON.stringify({
+    title: recipe.title,
+    description: recipe.description,
+    ingredients: normalizeSections(recipe.ingredients),
+    instructions: normalizeSections(recipe.instructions),
+    prepTime: recipe.prepTime,
+    cookTime: recipe.cookTime,
+    totalTime: recipe.totalTime,
+    freezeTime: recipe.freezeTime,
+    recipeYield: recipe.recipeYield,
+    recipeCategory: recipe.recipeCategory,
+    recipeCuisine: recipe.recipeCuisine,
+    nutrition: recipe.nutrition,
+    notes: recipe.notes,
+  }, null, 2)
 
   // Preview path: run LLM, validate, return diff without writing
   const { aiResponse, mode, provider } = body as z.infer<typeof previewSchema>
 
-  const recipeJson = JSON.stringify(
-    {
-      title: recipe.title,
-      description: recipe.description,
-      ingredients: recipe.ingredients,
-      instructions: recipe.instructions,
-      prepTime: recipe.prepTime,
-      cookTime: recipe.cookTime,
-      totalTime: recipe.totalTime,
-      freezeTime: recipe.freezeTime,
-      recipeYield: recipe.recipeYield,
-      recipeCategory: recipe.recipeCategory,
-      recipeCuisine: recipe.recipeCuisine,
-      nutrition: recipe.nutrition,
-      notes: recipe.notes,
-    },
-    null,
-    2,
-  )
-
   const sharedRules = `- Return ONLY a JSON object with the fields that should change.
 - "ingredients" must be an array of strings.
 - "instructions" must be an array of strings.
+Your job: Return ONLY a JSON object containing the fields that should be changed.
+- Only include fields that need updating based on the AI response.
+- "ingredients" must be an array of section objects: [{ "name": string|null, "items": string[] }].
+- "instructions" must be an array of section objects: [{ "name": string|null, "items": string[] }].
+- Use null for section name when there is no section grouping.
 - "nutrition" must be an object with string keys and string values.
 - All other fields are strings.
 - The "instructions" array MUST have >= the same number of items as the original. Do NOT merge or combine steps.
