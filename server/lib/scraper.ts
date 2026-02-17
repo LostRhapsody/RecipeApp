@@ -52,7 +52,7 @@ export async function scrapeRecipe(url: string): Promise<Omit<NewRecipe, "id" | 
   // Strategy 1: JSON-LD
   const recipe = extractJsonLd($)
   if (recipe) {
-    return normalizeJsonLd(recipe, url)
+    return normalizeJsonLd(recipe, url, $)
   }
 
   // Strategy 2: HTML microdata/selectors fallback
@@ -106,7 +106,22 @@ function findRecipeInJsonLd(data: unknown): JsonLdRecipe | null {
   return null
 }
 
-function normalizeJsonLd(recipe: JsonLdRecipe, url: string): Omit<NewRecipe, "id" | "createdAt"> {
+function normalizeJsonLd(
+  recipe: JsonLdRecipe,
+  url: string,
+  $: cheerio.CheerioAPI,
+): Omit<NewRecipe, "id" | "createdAt"> {
+  // Try JSON-LD flat list first, fall back to HTML ingredient groups
+  let ingredients = normalizeIngredientSections(recipe.recipeIngredient)
+  const hasOnlyOneUnnamedSection =
+    ingredients.length === 1 && ingredients[0].name === null
+  if (hasOnlyOneUnnamedSection) {
+    const htmlGroups = extractIngredientGroupsFromHtml($)
+    if (htmlGroups.length > 0) {
+      ingredients = htmlGroups
+    }
+  }
+
   return {
     url,
     title: recipe.name || "Untitled Recipe",
@@ -120,7 +135,7 @@ function normalizeJsonLd(recipe: JsonLdRecipe, url: string): Omit<NewRecipe, "id
     recipeYield: normalizeStringOrArray(recipe.recipeYield),
     recipeCategory: normalizeStringOrArray(recipe.recipeCategory),
     recipeCuisine: normalizeStringOrArray(recipe.recipeCuisine),
-    ingredients: normalizeIngredientSections(recipe.recipeIngredient),
+    ingredients,
     instructions: normalizeInstructions(recipe.recipeInstructions),
     nutrition: normalizeNutrition(recipe.nutrition),
     notes: null,
@@ -149,6 +164,87 @@ function normalizeStringOrArray(value: string | string[] | undefined): string | 
   if (!value) return null
   if (Array.isArray(value)) return value.join(", ")
   return value
+}
+
+/**
+ * Extracts ingredient groups from HTML markup.
+ * Supports common recipe plugins: WPRM, Tasty Recipes, and generic
+ * patterns where ingredient items are grouped under headings.
+ * Returns an empty array if no grouped structure is found.
+ */
+function extractIngredientGroupsFromHtml($: cheerio.CheerioAPI): RecipeSection[] {
+  const sections: RecipeSection[] = []
+
+  // WPRM (WP Recipe Maker) — most common WordPress recipe plugin
+  const wprmGroups = $(".wprm-recipe-ingredient-group")
+  if (wprmGroups.length > 0) {
+    wprmGroups.each((_, group) => {
+      const name =
+        $(group).find(".wprm-recipe-group-name").first().text().trim() || null
+      const items: string[] = []
+      $(group)
+        .find(".wprm-recipe-ingredient")
+        .each((_, li) => {
+          const text = $(li).text().trim()
+          if (text) items.push(text)
+        })
+      if (items.length > 0) sections.push({ name, items })
+    })
+    if (sections.length > 1 || (sections.length === 1 && sections[0].name)) {
+      return sections
+    }
+    sections.length = 0
+  }
+
+  // Tasty Recipes plugin
+  const tastyBody = $(".tasty-recipes-ingredients-body")
+  if (tastyBody.length > 0) {
+    tastyBody.find("h4, h3, h2").each((_, heading) => {
+      const name = $(heading).text().trim() || null
+      const items: string[] = []
+      let next = $(heading).next()
+      while (next.length > 0 && !next.is("h4, h3, h2")) {
+        if (next.is("ul, ol")) {
+          next.find("li").each((_, li) => {
+            const text = $(li).text().trim()
+            if (text) items.push(text)
+          })
+        }
+        next = next.next()
+      }
+      if (items.length > 0) sections.push({ name, items })
+    })
+    if (sections.length > 0) return sections
+  }
+
+  // Generic: look for ingredient containers with internal headings
+  const containers = $(
+    ".recipe-ingredients, .ingredients-section, [class*='ingredient-group']",
+  )
+  if (containers.length > 0) {
+    containers.each((_, container) => {
+      $(container)
+        .find("h2, h3, h4, h5")
+        .each((_, heading) => {
+          const name = $(heading).text().trim() || null
+          const items: string[] = []
+          let next = $(heading).next()
+          while (next.length > 0 && !next.is("h2, h3, h4, h5")) {
+            if (next.is("ul, ol")) {
+              next.find("li").each((_, li) => {
+                const text = $(li).text().trim()
+                if (text) items.push(text)
+              })
+            }
+            next = next.next()
+          }
+          if (items.length > 0) sections.push({ name, items })
+        })
+    })
+    if (sections.length > 0) return sections
+  }
+
+  return []
 }
 
 /**
