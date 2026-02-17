@@ -1,5 +1,20 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core"
 
+export interface RecipeSection {
+  name: string | null
+  items: string[]
+}
+
+/**
+ * Normalizes raw JSON from the database (which may be a flat string[]
+ * from old data or a RecipeSection[] from new data) into RecipeSection[].
+ */
+export function normalizeSections(data: unknown): RecipeSection[] {
+  if (!Array.isArray(data) || data.length === 0) return [{ name: null, items: [] }]
+  if (typeof data[0] === "string") return [{ name: null, items: data as string[] }]
+  return data as RecipeSection[]
+}
+
 export const recipes = sqliteTable("recipes", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   url: text("url").notNull().unique(),
@@ -14,8 +29,8 @@ export const recipes = sqliteTable("recipes", {
   recipeCategory: text("recipe_category"),
   recipeCuisine: text("recipe_cuisine"),
   freezeTime: text("freeze_time"),
-  ingredients: text("ingredients", { mode: "json" }).notNull().$type<string[]>(),
-  instructions: text("instructions", { mode: "json" }).notNull().$type<string[]>(),
+  ingredients: text("ingredients", { mode: "json" }).notNull().$type<RecipeSection[]>(),
+  instructions: text("instructions", { mode: "json" }).notNull().$type<RecipeSection[]>(),
   nutrition: text("nutrition", { mode: "json" }).$type<Record<string, string>>(),
   notes: text("notes"),
   createdAt: integer("created_at", { mode: "timestamp" })

@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm"
 import { useDB } from "../../database"
-import { recipes } from "../../database/schema"
+import { recipes, normalizeSections } from "../../database/schema"
 
 export default defineEventHandler((event) => {
   const id = Number(getRouterParam(event, "id"))
@@ -15,5 +15,9 @@ export default defineEventHandler((event) => {
     throw createError({ statusCode: 404, statusMessage: "Recipe not found" })
   }
 
-  return recipe
+  return {
+    ...recipe,
+    ingredients: normalizeSections(recipe.ingredients),
+    instructions: normalizeSections(recipe.instructions),
+  }
 })

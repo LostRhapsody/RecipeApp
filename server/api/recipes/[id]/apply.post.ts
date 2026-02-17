@@ -1,7 +1,7 @@
 import { z } from "zod"
 import { eq } from "drizzle-orm"
 import { useDB } from "../../../database"
-import { recipes } from "../../../database/schema"
+import { recipes, normalizeSections } from "../../../database/schema"
 import { callLLM } from "../../../lib/llm"
 
 const schema = z.object({
@@ -43,8 +43,8 @@ export default defineEventHandler(async (event) => {
   const recipeJson = JSON.stringify({
     title: recipe.title,
     description: recipe.description,
-    ingredients: recipe.ingredients,
-    instructions: recipe.instructions,
+    ingredients: normalizeSections(recipe.ingredients),
+    instructions: normalizeSections(recipe.instructions),
     prepTime: recipe.prepTime,
     cookTime: recipe.cookTime,
     totalTime: recipe.totalTime,
@@ -60,8 +60,9 @@ export default defineEventHandler(async (event) => {
 
 Your job: Return ONLY a JSON object containing the fields that should be changed.
 - Only include fields that need updating based on the AI response.
-- "ingredients" must be an array of strings.
-- "instructions" must be an array of strings.
+- "ingredients" must be an array of section objects: [{ "name": string|null, "items": string[] }].
+- "instructions" must be an array of section objects: [{ "name": string|null, "items": string[] }].
+- Use null for section name when there is no section grouping.
 - "nutrition" must be an object with string keys and string values.
 - All other fields are strings.
 - Do NOT include unchanged fields.

@@ -1,4 +1,9 @@
 <script setup lang="ts">
+interface RecipeSection {
+  name: string | null
+  items: string[]
+}
+
 const route = useRoute()
 const toast = useToast()
 
@@ -47,6 +52,10 @@ const editing = ref(false)
 const editData = ref<Record<string, any>>({})
 const saving = ref(false)
 
+function cloneSections(sections: RecipeSection[]): RecipeSection[] {
+  return sections.map((s) => ({ name: s.name, items: [...s.items] }))
+}
+
 function startEditing() {
   if (!recipe.value) return
   editData.value = {
@@ -60,8 +69,8 @@ function startEditing() {
     recipeYield: recipe.value.recipeYield || "",
     recipeCategory: recipe.value.recipeCategory || "",
     recipeCuisine: recipe.value.recipeCuisine || "",
-    ingredients: [...(recipe.value.ingredients as string[])],
-    instructions: [...(recipe.value.instructions as string[])],
+    ingredients: cloneSections(recipe.value.ingredients as RecipeSection[]),
+    instructions: cloneSections(recipe.value.instructions as RecipeSection[]),
     nutrition: recipe.value.nutrition ? { ...recipe.value.nutrition } : {},
     notes: recipe.value.notes || "",
   }
@@ -73,20 +82,36 @@ function cancelEditing() {
   editData.value = {}
 }
 
-function addIngredient() {
-  editData.value.ingredients.push("")
+function addIngredient(sectionIndex: number) {
+  editData.value.ingredients[sectionIndex].items.push("")
 }
 
-function removeIngredient(i: number) {
-  editData.value.ingredients.splice(i, 1)
+function removeIngredient(sectionIndex: number, itemIndex: number) {
+  editData.value.ingredients[sectionIndex].items.splice(itemIndex, 1)
 }
 
-function addStep() {
-  editData.value.instructions.push("")
+function addIngredientSection() {
+  editData.value.ingredients.push({ name: "", items: [""] })
 }
 
-function removeStep(i: number) {
-  editData.value.instructions.splice(i, 1)
+function removeIngredientSection(sectionIndex: number) {
+  editData.value.ingredients.splice(sectionIndex, 1)
+}
+
+function addStep(sectionIndex: number) {
+  editData.value.instructions[sectionIndex].items.push("")
+}
+
+function removeStep(sectionIndex: number, itemIndex: number) {
+  editData.value.instructions[sectionIndex].items.splice(itemIndex, 1)
+}
+
+function addInstructionSection() {
+  editData.value.instructions.push({ name: "", items: [""] })
+}
+
+function removeInstructionSection(sectionIndex: number) {
+  editData.value.instructions.splice(sectionIndex, 1)
 }
 
 function addNutritionKey() {
@@ -98,14 +123,22 @@ function removeNutritionKey(key: string) {
   delete editData.value.nutrition[key]
 }
 
+function cleanSections(sections: RecipeSection[]): RecipeSection[] {
+  return sections
+    .map((s) => ({
+      name: s.name?.trim() || null,
+      items: s.items.filter((item) => item.trim()),
+    }))
+    .filter((s) => s.items.length > 0)
+}
+
 async function saveEdit() {
   saving.value = true
   try {
-    // Filter out empty ingredients/instructions
     const body = {
       ...editData.value,
-      ingredients: editData.value.ingredients.filter((s: string) => s.trim()),
-      instructions: editData.value.instructions.filter((s: string) => s.trim()),
+      ingredients: cleanSections(editData.value.ingredients),
+      instructions: cleanSections(editData.value.instructions),
       description: editData.value.description || null,
       author: editData.value.author || null,
       prepTime: editData.value.prepTime || null,
@@ -225,6 +258,20 @@ function escapeHtml(str: string): string {
     .replace(/"/g, "&quot;")
 }
 
+// Helper to check if sections have named groups
+function hasNamedSections(sections: RecipeSection[]): boolean {
+  return sections.some((s) => s.name !== null)
+}
+
+// Compute running step number across sections for instructions
+function getStepOffset(sections: RecipeSection[], sectionIndex: number): number {
+  let offset = 0
+  for (let i = 0; i < sectionIndex; i++) {
+    offset += sections[i].items.length
+  }
+  return offset
+}
+
 // Delete
 async function deleteRecipe() {
   try {
@@ -314,37 +361,81 @@ async function deleteRecipe() {
           <h2 class="mb-3 text-xl font-semibold">Ingredients</h2>
 
           <template v-if="editing">
-            <div class="space-y-2">
-              <div v-for="(_, i) in editData.ingredients" :key="i" class="flex items-center gap-2">
-                <UInput v-model="editData.ingredients[i]" class="flex-1" />
+            <div class="space-y-4">
+              <div
+                v-for="(section, si) in editData.ingredients"
+                :key="si"
+                class="space-y-2"
+              >
+                <div class="flex items-center gap-2">
+                  <UInput
+                    v-model="editData.ingredients[si].name"
+                    :placeholder="editData.ingredients.length > 1 ? 'Section name (e.g. For the sauce)' : 'Section name (optional)'"
+                    size="sm"
+                    class="flex-1"
+                  />
+                  <UButton
+                    v-if="editData.ingredients.length > 1"
+                    icon="i-lucide-trash-2"
+                    size="xs"
+                    color="error"
+                    variant="ghost"
+                    @click="removeIngredientSection(si)"
+                  />
+                </div>
+                <div v-for="(_, ii) in section.items" :key="ii" class="flex items-center gap-2 pl-4">
+                  <UInput v-model="editData.ingredients[si].items[ii]" class="flex-1" />
+                  <UButton
+                    icon="i-lucide-x"
+                    size="xs"
+                    color="error"
+                    variant="ghost"
+                    @click="removeIngredient(si, ii)"
+                  />
+                </div>
                 <UButton
-                  icon="i-lucide-x"
+                  label="Add Ingredient"
+                  icon="i-lucide-plus"
                   size="xs"
-                  color="error"
-                  variant="ghost"
-                  @click="removeIngredient(i)"
+                  variant="soft"
+                  class="ml-4"
+                  @click="addIngredient(si)"
                 />
               </div>
               <UButton
-                label="Add Ingredient"
+                label="Add Section"
                 icon="i-lucide-plus"
                 size="xs"
-                variant="soft"
-                @click="addIngredient"
+                variant="outline"
+                @click="addIngredientSection"
               />
             </div>
           </template>
 
-          <ul v-else class="space-y-2">
-            <li
-              v-for="(ingredient, i) in recipe.ingredients"
-              :key="i"
-              class="border-default flex items-start gap-2 border-b pb-2 last:border-0"
+          <template v-else>
+            <div
+              v-for="(section, si) in (recipe.ingredients as RecipeSection[])"
+              :key="si"
+              :class="{ 'mt-4': si > 0 }"
             >
-              <UIcon name="i-lucide-circle" class="mt-1.5 size-2 shrink-0" />
-              <span v-html="highlightText(ingredient, searchQuery)" />
-            </li>
-          </ul>
+              <h3
+                v-if="section.name"
+                class="text-muted mb-2 text-sm font-semibold uppercase tracking-wide"
+              >
+                {{ section.name }}
+              </h3>
+              <ul class="space-y-2">
+                <li
+                  v-for="(ingredient, i) in section.items"
+                  :key="i"
+                  class="border-default flex items-start gap-2 border-b pb-2 last:border-0"
+                >
+                  <UIcon name="i-lucide-circle" class="mt-1.5 size-2 shrink-0" />
+                  <span v-html="highlightText(ingredient, searchQuery)" />
+                </li>
+              </ul>
+            </div>
+          </template>
         </div>
 
         <!-- Instructions -->
@@ -352,39 +443,85 @@ async function deleteRecipe() {
           <h2 class="mb-3 text-xl font-semibold">Instructions</h2>
 
           <template v-if="editing">
-            <div class="space-y-3">
-              <div v-for="(_, i) in editData.instructions" :key="i" class="flex gap-2">
-                <span class="text-muted mt-2 text-sm font-bold">{{ i + 1 }}.</span>
-                <UTextarea v-model="editData.instructions[i]" class="flex-1" />
+            <div class="space-y-4">
+              <div
+                v-for="(section, si) in editData.instructions"
+                :key="si"
+                class="space-y-3"
+              >
+                <div class="flex items-center gap-2">
+                  <UInput
+                    v-model="editData.instructions[si].name"
+                    :placeholder="editData.instructions.length > 1 ? 'Section name (e.g. For the cake)' : 'Section name (optional)'"
+                    size="sm"
+                    class="flex-1"
+                  />
+                  <UButton
+                    v-if="editData.instructions.length > 1"
+                    icon="i-lucide-trash-2"
+                    size="xs"
+                    color="error"
+                    variant="ghost"
+                    @click="removeInstructionSection(si)"
+                  />
+                </div>
+                <div v-for="(_, ii) in section.items" :key="ii" class="flex gap-2 pl-4">
+                  <span class="text-muted mt-2 text-sm font-bold">
+                    {{ getStepOffset(editData.instructions, si) + ii + 1 }}.
+                  </span>
+                  <UTextarea v-model="editData.instructions[si].items[ii]" class="flex-1" />
+                  <UButton
+                    icon="i-lucide-x"
+                    size="xs"
+                    color="error"
+                    variant="ghost"
+                    class="mt-2"
+                    @click="removeStep(si, ii)"
+                  />
+                </div>
                 <UButton
-                  icon="i-lucide-x"
+                  label="Add Step"
+                  icon="i-lucide-plus"
                   size="xs"
-                  color="error"
-                  variant="ghost"
-                  class="mt-2"
-                  @click="removeStep(i)"
+                  variant="soft"
+                  class="ml-4"
+                  @click="addStep(si)"
                 />
               </div>
               <UButton
-                label="Add Step"
+                label="Add Section"
                 icon="i-lucide-plus"
                 size="xs"
-                variant="soft"
-                @click="addStep"
+                variant="outline"
+                @click="addInstructionSection"
               />
             </div>
           </template>
 
-          <ol v-else class="space-y-4">
-            <li v-for="(step, i) in recipe.instructions" :key="i" class="flex gap-3">
-              <span
-                class="bg-primary text-inverted flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-bold"
+          <template v-else>
+            <div
+              v-for="(section, si) in (recipe.instructions as RecipeSection[])"
+              :key="si"
+              :class="{ 'mt-6': si > 0 }"
+            >
+              <h3
+                v-if="section.name"
+                class="text-muted mb-3 text-sm font-semibold uppercase tracking-wide"
               >
-                {{ i + 1 }}
-              </span>
-              <p class="pt-0.5" v-html="highlightText(step, searchQuery)" />
-            </li>
-          </ol>
+                {{ section.name }}
+              </h3>
+              <ol class="space-y-4">
+                <li v-for="(step, i) in section.items" :key="i" class="flex gap-3">
+                  <span
+                    class="bg-primary text-inverted flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-bold"
+                  >
+                    {{ getStepOffset(recipe.instructions as RecipeSection[], si) + i + 1 }}
+                  </span>
+                  <p class="pt-0.5" v-html="highlightText(step, searchQuery)" />
+                </li>
+              </ol>
+            </div>
+          </template>
         </div>
       </div>
 
