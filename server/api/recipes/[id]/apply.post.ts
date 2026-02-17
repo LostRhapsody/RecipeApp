@@ -7,6 +7,7 @@ import { callLLM } from "../../../lib/llm"
 const schema = z.object({
   aiResponse: z.string().min(1),
   mode: z.enum(["review", "cleanup", "suggestions"]),
+  provider: z.enum(["local", "cloud"]).default("local"),
 })
 
 const allowedFields = new Set([
@@ -31,7 +32,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: "Invalid recipe ID" })
   }
 
-  const { aiResponse, mode } = await readValidatedBody(event, (b) => schema.parse(b))
+  const { aiResponse, mode, provider } = await readValidatedBody(event, (b) => schema.parse(b))
 
   const db = useDB()
   const recipe = db.select().from(recipes).where(eq(recipes.id, id)).get()
@@ -73,6 +74,7 @@ Your job: Return ONLY a JSON object containing the fields that should be changed
   const result = await callLLM(systemPrompt, userPrompt, {
     noThink: true,
     temperature: 0.1,
+    provider,
   })
 
   // Strip markdown fences if present

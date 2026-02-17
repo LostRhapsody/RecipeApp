@@ -132,6 +132,7 @@ async function saveEdit() {
 
 // AI Assistant
 const aiMode = ref<"review" | "cleanup" | "suggestions">("review")
+const aiProvider = ref<"local" | "cloud">("local")
 const aiResult = ref("")
 const aiLoading = ref(false)
 const aiOpen = ref(false)
@@ -142,19 +143,28 @@ const modeOptions = [
   { label: "Suggestions", value: "suggestions", icon: "i-lucide-lightbulb" },
 ]
 
+const providerOptions = [
+  { label: "Local", value: "local", icon: "i-lucide-hard-drive" },
+  { label: "Cloud", value: "cloud", icon: "i-lucide-cloud" },
+]
+
 async function runAiReview() {
   aiResult.value = ""
   aiLoading.value = true
   try {
     const res = await $fetch<{ result: string }>(`/api/recipes/${route.params.id}/review`, {
       method: "POST",
-      body: { mode: aiMode.value },
+      body: { mode: aiMode.value, provider: aiProvider.value },
     })
     aiResult.value = res.result
   } catch (e: any) {
     toast.add({
       title: "AI review failed",
-      description: e.data?.message || "Make sure llama-server is running locally.",
+      description:
+        e.data?.message ||
+        (aiProvider.value === "local"
+          ? "Make sure llama-server is running locally."
+          : "Check your OpenRouter API key configuration."),
       color: "error",
     })
   } finally {
@@ -170,7 +180,7 @@ async function applyAiResult() {
   try {
     await $fetch(`/api/recipes/${route.params.id}/apply`, {
       method: "POST",
-      body: { aiResponse: aiResult.value, mode: aiMode.value },
+      body: { aiResponse: aiResult.value, mode: aiMode.value, provider: aiProvider.value },
     })
     await refresh()
     aiResult.value = ""
@@ -451,7 +461,21 @@ async function deleteRecipe() {
         <div v-if="aiOpen" class="mt-4">
           <UCard>
             <div class="flex flex-col gap-4">
-              <p class="text-muted text-sm">Powered by a local Qwen3-4B model via llama.cpp.</p>
+              <div class="flex items-center justify-between">
+                <p class="text-muted text-sm">
+                  {{
+                    aiProvider === "local"
+                      ? "Using local Qwen3-4B model via llama.cpp"
+                      : "Using Arcee Trinity (cloud) via OpenRouter"
+                  }}
+                </p>
+                <URadioGroup
+                  v-model="aiProvider"
+                  :items="providerOptions"
+                  orientation="horizontal"
+                  size="sm"
+                />
+              </div>
 
               <div class="flex flex-wrap items-end gap-3">
                 <URadioGroup v-model="aiMode" :items="modeOptions" orientation="horizontal" />

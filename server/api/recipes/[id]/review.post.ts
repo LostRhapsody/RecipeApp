@@ -6,6 +6,7 @@ import { callLLM } from "../../../lib/llm"
 
 const schema = z.object({
   mode: z.enum(["review", "cleanup", "suggestions"]).default("review"),
+  provider: z.enum(["local", "cloud"]).default("local"),
 })
 
 export default defineEventHandler(async (event) => {
@@ -14,7 +15,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: "Invalid recipe ID" })
   }
 
-  const { mode } = await readValidatedBody(event, (b) => schema.parse(b))
+  const { mode, provider } = await readValidatedBody(event, (b) => schema.parse(b))
 
   const db = useDB()
   const recipe = db.select().from(recipes).where(eq(recipes.id, id)).get()
@@ -54,7 +55,7 @@ Constraints:
 - Reply in under 120 words.
 - No chit-chat or preamble.`
 
-  const result = await callLLM(systemPrompt, recipeText)
+  const result = await callLLM(systemPrompt, recipeText, { provider })
 
   return { result }
 })
